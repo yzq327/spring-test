@@ -38,12 +38,15 @@ class RsServiceTest {
   Vote vote;
   Trade trade;
 
+
+
   @BeforeEach
   void setUp() {
     initMocks(this);
     rsService = new RsService(rsEventRepository, userRepository, voteRepository, tradeRepository);
     localDateTime = LocalDateTime.now();
    // vote = Vote.builder().voteNum(2).rsEventId(1).time(localDateTime).userId(1).build();
+
     trade = Trade.builder().rsEventId(1).userId(1).amount(100).rank(1).build();
   }
 
@@ -133,7 +136,7 @@ class RsServiceTest {
   }
 
   @Test
-  void shouldTradeSuccess() {
+  void shouldTradeSuccessWhenNobodyBuyRank() {
     // given
     UserDto userDto =
             UserDto.builder()
@@ -153,12 +156,9 @@ class RsServiceTest {
                     .voteNum(2)
                     .user(userDto)
                     .build();
-
-    VoteDto voteDto = VoteDto.builder().rsEvent(rsEventDto)
-            .user(userDto).num(3).localDateTime(localDateTime).build();
     when(rsEventRepository.findById(anyInt())).thenReturn(Optional.of(rsEventDto));
     when(userRepository.findById(anyInt())).thenReturn(Optional.of(userDto));
-  //  when(voteRepository.findById(anyInt())).thenReturn(Optional.of(voteDto));
+
     // when
     rsService.buy(trade, 1);
     // then
@@ -172,6 +172,27 @@ class RsServiceTest {
                             .build());
     verify(userRepository).save(userDto);
     verify(rsEventRepository).save(rsEventDto);
-   // verify(voteRepository).save(voteDto);
+
+  }
+
+  @Test
+  void shouldThrowExceptionWhenVoteNotValidWhenAmountIsLower() {
+    // given
+    UserDto userDto = UserDto.builder().voteNum(5).phone("18888888888")
+            .gender("female").email("a@b.com")
+            .age(19).userName("xiaoli").id(2).build();
+    RsEventDto rsEventDto= RsEventDto.builder().eventName("event name")
+            .id(1).keyword("keyword").voteNum(2).user(userDto)
+            .build();
+    TradeDto tradeDto = TradeDto.builder().amount(120).rank(1).rsEvent(rsEventDto)
+            .user(userDto).id(3).build();
+    tradeRepository.save(tradeDto);
+    when(rsEventRepository.findById(anyInt())).thenReturn(Optional.of(rsEventDto));
+    when(userRepository.findById(anyInt())).thenReturn(Optional.of(userDto));
+    //when(tradeRepository.findById(anyInt())).thenReturn(Optional.of(tradeDto));
+    // when & then
+    assertThrows(RuntimeException.class, () -> {
+      rsService.buy(trade, 1);
+    });
   }
 }

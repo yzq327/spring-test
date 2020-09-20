@@ -13,6 +13,7 @@ import com.thoughtworks.rslist.repository.VoteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -55,24 +56,38 @@ public class RsService {
   }
 
   public void buy(Trade trade, int rsEventId){
+
     Optional<RsEventDto> rsEventDto = rsEventRepository.findById(rsEventId);
     Optional<UserDto> userDto = userRepository.findById(trade.getUserId());
-    if (!rsEventDto.isPresent()
-            || !userDto.isPresent()) {
-      throw new RuntimeException();
+    List<TradeDto> tradeDtos = tradeRepository.findAll();
+    System.out.println("tradeDtos.size{}:" + tradeDtos.size());
+    int sameRankNumber=0;
+    for(int i = 0; i<tradeDtos.size();i++){
+      if( trade.getRank() == tradeDtos.get(i).getRank()) {
+        sameRankNumber ++ ;
+      }
     }
-    TradeDto tradeDto =
-            TradeDto.builder()
-                    .amount(trade.getAmount())
-                    .rank(trade.getRank())
-                    .rsEvent(rsEventDto.get())
-                    .user(userDto.get())
-                    .build();
-    tradeRepository.save(tradeDto);
-    UserDto user = userDto.get();
-    userRepository.save(user);
-    RsEventDto rsEvent = rsEventDto.get();
-    rsEventRepository.save(rsEvent);
-
+    if(sameRankNumber == 0) {
+      TradeDto tradeDto =
+              TradeDto.builder()
+                      .amount(trade.getAmount())
+                      .rank(trade.getRank())
+                      .rsEvent(rsEventDto.get())
+                      .user(userDto.get())
+                      .build();
+      tradeRepository.save(tradeDto);
+      UserDto user = userDto.get();
+      userRepository.save(user);
+      RsEventDto rsEvent = rsEventDto.get();
+      rsEventRepository.save(rsEvent);
+    } else {
+      for(int i = 0; i < tradeDtos.size(); i++){
+        if( trade.getRank() == tradeDtos.get(i).getRank()) {
+          if(trade.getAmount() < tradeDtos.get(i).getAmount()){
+            throw new RuntimeException();
+          }
+        }
+      }
+    }
   }
 }
