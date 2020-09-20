@@ -1,9 +1,14 @@
 package com.thoughtworks.rslist.api;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thoughtworks.rslist.domain.Trade;
+import com.thoughtworks.rslist.domain.Vote;
 import com.thoughtworks.rslist.dto.RsEventDto;
+import com.thoughtworks.rslist.dto.TradeDto;
 import com.thoughtworks.rslist.dto.UserDto;
 import com.thoughtworks.rslist.dto.VoteDto;
 import com.thoughtworks.rslist.repository.RsEventRepository;
+import com.thoughtworks.rslist.repository.TradeRepository;
 import com.thoughtworks.rslist.repository.UserRepository;
 import com.thoughtworks.rslist.repository.VoteRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +40,8 @@ class RsControllerTest {
   @Autowired UserRepository userRepository;
   @Autowired RsEventRepository rsEventRepository;
   @Autowired VoteRepository voteRepository;
+  @Autowired
+  TradeRepository tradeRepository;
   private UserDto userDto;
 
   @BeforeEach
@@ -42,6 +49,7 @@ class RsControllerTest {
     voteRepository.deleteAll();
     rsEventRepository.deleteAll();
     userRepository.deleteAll();
+    tradeRepository.deleteAll();
     userDto =
         UserDto.builder()
             .voteNum(10)
@@ -166,6 +174,7 @@ class RsControllerTest {
         RsEventDto.builder().keyword("无分类").eventName("第一条事件").user(save).build();
     rsEventDto = rsEventRepository.save(rsEventDto);
 
+
     String jsonValue =
         String.format(
             "{\"userId\":%d,\"time\":\"%s\",\"voteNum\":1}",
@@ -176,7 +185,6 @@ class RsControllerTest {
                 .content(jsonValue)
                 .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());
-
     UserDto userDto = userRepository.findById(save.getId()).get();
     RsEventDto newRsEvent = rsEventRepository.findById(rsEventDto.getId()).get();
     assertEquals(userDto.getVoteNum(), 9);
@@ -184,5 +192,35 @@ class RsControllerTest {
     List<VoteDto> voteDtos =  voteRepository.findAll();
     assertEquals(voteDtos.size(), 1);
     assertEquals(voteDtos.get(0).getNum(), 1);
+  }
+
+  @Test
+  public void shouldTradeSuccess() throws Exception {
+    UserDto saveUserDto = userRepository.save(userDto);
+    RsEventDto rsEventDto =
+            RsEventDto.builder().keyword("无分类").eventName("第一条事件").user(saveUserDto).build();
+    rsEventDto = rsEventRepository.save(rsEventDto);
+    VoteDto voteDto = VoteDto.builder().user(saveUserDto).rsEvent(rsEventDto)
+            .localDateTime(LocalDateTime.now()).num(2).build();
+    voteRepository.save(voteDto);
+    Trade trade = new Trade(100, 1 ,userDto.getId(), userDto.getId());
+    ObjectMapper objectMapper = new ObjectMapper();
+    String jsonString = objectMapper.writeValueAsString(trade);
+    mockMvc
+            .perform(
+                    post("/rs/buy/{id}", rsEventDto.getId())
+                            .content(jsonString)
+                            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk());
+    UserDto userDtoSecond = userRepository.findById(userDto.getId()).get();
+    RsEventDto newRsEvent = rsEventRepository.findById(rsEventDto.getId()).get();
+    assertEquals(userDtoSecond.getVoteNum(), 8);
+    assertEquals(newRsEvent.getVoteNum(), 2);
+    List<VoteDto> voteDtos =  voteRepository.findAll();
+    assertEquals(voteDtos.get(0).getNum(), 2);
+    List<TradeDto> tradeDtos = tradeRepository.findAll();
+    assertEquals(tradeDtos.size(), 1);
+    assertEquals(tradeDtos.get(0).getRank(), 1);
+    assertEquals(tradeDtos.get(0).getAmount(), 100);
   }
 }

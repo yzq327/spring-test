@@ -84,7 +84,6 @@ class VoteControllerTest {
       voteRepository.save(voteDto);
 
 
-
       mockMvc.perform(get("/voteRecord").param("userId",String.valueOf(userDto.getId()))
       .param("rsEventId",String.valueOf(rsEventDto.getId())).param("pageIndex", "1"))
               .andExpect(jsonPath("$", hasSize(5)))
@@ -107,4 +106,6 @@ class VoteControllerTest {
 
 
     }
+
+
 }
